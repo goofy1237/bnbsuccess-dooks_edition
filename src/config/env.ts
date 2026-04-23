@@ -95,8 +95,8 @@ export const config: Config = {
   faceReferenceUrl: env('FACE_REFERENCE_URL'),
 
   // Voice defaults
-  defaultVoiceSpeed: envNumber('DEFAULT_VOICE_SPEED', 1.0),
-  defaultVoiceTemp: envNumber('DEFAULT_VOICE_TEMP', 0.7),
+  defaultVoiceSpeed: envNumber('DEFAULT_VOICE_SPEED', 0.95),
+  defaultVoiceTemp: envNumber('DEFAULT_VOICE_TEMP', 0.8),
   targetWpm: envNumber('TARGET_WPM', 140),
 };
 

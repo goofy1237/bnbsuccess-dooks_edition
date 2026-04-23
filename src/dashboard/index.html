@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BNB UGC — Local Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1115; color: #e5e7eb; padding: 24px; }
+  h1 { margin: 0 0 8px; font-size: 20px; }
+  h2 { margin: 0 0 12px; font-size: 16px; color: #f3f4f6; }
+  main { max-width: 960px; margin: 0 auto; }
+  section { background: #181b22; border: 1px solid #262a33; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  label { display: block; font-size: 12px; color: #9ca3af; margin: 8px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; padding: 8px 10px; background: #0f1115; color: #e5e7eb;
+    border: 1px solid #2d323d; border-radius: 6px; font: inherit;
+  }
+  textarea { resize: vertical; min-height: 140px; font-family: "SF Mono", Consolas, monospace; font-size: 13px; }
+  button { padding: 8px 14px; border: 1px solid #3b82f6; background: #3b82f6; color: #fff; border-radius: 6px; cursor: pointer; font: inherit; }
+  button.secondary { background: transparent; color: #93c5fd; border-color: #2d323d; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.big { padding: 14px 24px; font-size: 16px; font-weight: 600; width: 100%; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 0; }
+  .mono { font-family: "SF Mono", Consolas, monospace; font-size: 12px; color: #93c5fd; word-break: break-all; }
+  .hint { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  .constraint { font-size: 12px; color: #9ca3af; background: #111418; border-left: 3px solid #3b82f6; padding: 6px 10px; margin: 4px 0; border-radius: 3px; }
+  .chip { display: inline-block; padding: 3px 8px; background: #1f2937; color: #93c5fd; border-radius: 4px; margin: 2px; font-size: 12px; cursor: pointer; user-select: none; border: 1px solid #2d323d; }
+  .chip:hover { background: #2d323d; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #2d323d; }
+  .tab { padding: 8px 14px; background: transparent; border: none; border-bottom: 2px solid transparent; color: #9ca3af; cursor: pointer; border-radius: 0; }
+  .tab.active { color: #e5e7eb; border-bottom-color: #3b82f6; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .card { border: 1px solid #2d323d; border-radius: 8px; padding: 12px; margin: 8px 0; background: #0f1115; cursor: pointer; }
+  .card.selected { border-color: #3b82f6; background: #172138; }
+  .card video { width: 100%; max-width: 220px; border-radius: 4px; }
+  .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .lib-item { border: 1px solid #2d323d; border-radius: 8px; padding: 8px; cursor: pointer; background: #0f1115; }
+  .lib-item.active { border-color: #10b981; box-shadow: 0 0 0 2px #065f46; }
+  .lib-item video { width: 100%; border-radius: 4px; display: block; background: #000; }
+  .log { background: #0a0c10; border: 1px solid #262a33; border-radius: 6px; padding: 10px; font: 12px/1.6 "SF Mono", Consolas, monospace; max-height: 300px; overflow-y: auto; }
+  .log .line { display: flex; gap: 10px; margin-bottom: 2px; }
+  .log .t { color: #6b7280; }
+  .log .m { color: #e5e7eb; }
+  .log .err { color: #f87171; }
+  .log .ok { color: #34d399; }
+  details summary { cursor: pointer; color: #93c5fd; padding: 6px 0; }
+  .error-banner { background: #3f1d1d; border: 1px solid #b91c1c; color: #fecaca; padding: 10px; border-radius: 6px; margin: 10px 0; }
+  .ok-banner { background: #0f2b1f; border: 1px solid #065f46; color: #a7f3d0; padding: 10px; border-radius: 6px; margin: 10px 0; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #1f2937; font-size: 11px; color: #9ca3af; margin-left: 6px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>BNB UGC Pipeline — Local Operator Dashboard</h1>
+  <p class="hint">Runs at <code>localhost:3000</code>. In-memory only — no persistence. One generation at a time.</p>
+
+  <!-- SECTION 1: VOICE -->
+  <section>
+    <h2>1. Voice <span class="pill" id="voicePill">loading…</span></h2>
+    <div class="row">
+      <div>
+        <label>Current Fish Audio voice ID</label>
+        <div class="mono" id="voiceCurrent">—</div>
+      </div>
+      <div style="flex:0 0 auto">
+        <button class="secondary" onclick="togglePanel('voicePanel')">Change</button>
+      </div>
+    </div>
+    <div id="voicePanel" class="hidden" style="margin-top:12px;padding-top:12px;border-top:1px solid #2d323d">
+      <div class="constraint">Programmatic cloning is currently unavailable (wrong endpoint). Use the Fish Audio web UI at <a href="https://fish.audio" target="_blank" style="color:#93c5fd">fish.audio</a> to clone, then paste the voice_id below.</div>
+      <label>Paste new voice_id</label>
+      <div class="row">
+        <input type="text" id="voiceIdInput" placeholder="e.g. 14d07e89acda4214bd319865a7e1a888">
+        <button style="flex:0 0 auto" onclick="saveVoice()">Save</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: FACE -->
+  <section>
+    <h2>2. Face Reference</h2>
+    <label>Current face URL</label>
+    <div class="mono" id="faceCurrent">—</div>
+
+    <div class="constraint">Max duration: 60s &middot; Min: 2s &middot; Recommended: vertical 1080×1920 &middot; Max size: 100 MB &middot; Formats: MP4, MOV</div>
+
+    <label style="margin-top:16px">Library</label>
+    <div id="faceLibrary" class="lib-grid"></div>
+
+    <details style="margin-top:12px">
+      <summary>Upload new face reference</summary>
+      <div style="margin-top:10px">
+        <input type="file" id="faceFile" accept="video/mp4,video/quicktime">
+        <div id="faceValidation" class="hint"></div>
+        <label>Tags (comma-separated)</label>
+        <input type="text" id="faceTags" placeholder="jordan, vertical, 30s">
+        <label>Notes</label>
+        <input type="text" id="faceNotes" placeholder="source / context">
+        <div style="margin-top:8px"><button onclick="uploadFace()" id="faceUploadBtn">Upload</button></div>
+        <div id="faceUploadStatus" class="hint"></div>
+      </div>
+    </details>
+  </section>
+
+  <!-- SECTION 3: SCRIPT -->
+  <section>
+    <h2>3. Script</h2>
+    <div class="tabs">
+      <button class="tab active" data-tab="manual">Write manually</button>
+      <button class="tab" data-tab="ai">Generate with AI</button>
+    </div>
+
+    <div class="tab-panel active" data-panel="manual">
+      <label>Emotion / pacing tags (click to insert)</label>
+      <div id="tagChips"></div>
+      <label>Script</label>
+      <textarea id="scriptText" placeholder="[excited] Your hook here. [pause] ..."></textarea>
+      <div class="hint" id="scriptStats">0 words &middot; ~0s estimated</div>
+    </div>
+
+    <div class="tab-panel" data-panel="ai">
+      <label>Angle</label>
+      <input type="text" id="aiAngle" placeholder="e.g. pricing mistakes that cost hosts bookings">
+      <div class="row">
+        <div>
+          <label>Hook type</label>
+          <select id="aiHook">
+            <option>skeptic</option>
+            <option selected>curiosity</option>
+            <option>result_first</option>
+            <option>challenge</option>
+            <option>storytime</option>
+          </select>
+        </div>
+        <div>
+          <label>Duration</label>
+          <select id="aiDur">
+            <option value="15">15s</option>
+            <option value="30" selected>30s</option>
+            <option value="45">45s</option>
+          </select>
+        </div>
+        <div>
+          <label>Variations</label>
+          <select id="aiN">
+            <option>1</option>
+            <option selected>2</option>
+            <option>3</option>
+          </select>
+        </div>
+        <div style="flex:0 0 auto;align-self:flex-end">
+          <button onclick="genScripts()" id="genBtn">Generate</button>
+        </div>
+      </div>
+      <div id="aiResults" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: SETTINGS -->
+  <section>
+    <details>
+      <summary><strong>4. Pipeline Settings</strong> (defaults work fine)</summary>
+      <div style="margin-top:10px">
+        <div class="row">
+          <div>
+            <label>Fish Audio speed <span id="speedVal" class="mono">0.95</span></label>
+            <input type="range" id="speed" min="0.85" max="1.15" step="0.01" value="0.95" oninput="speedVal.textContent=this.value">
+          </div>
+          <div>
+            <label>Fish Audio temperature <span id="tempVal" class="mono">0.80</span></label>
+            <input type="range" id="temp" min="0.5" max="1.0" step="0.01" value="0.80" oninput="tempVal.textContent=this.value">
+          </div>
+        </div>
+        <label>Output aspect ratio</label>
+        <select id="aspect">
+          <option value="9:16">9:16 vertical</option>
+          <option value="1:1">1:1 square</option>
+          <option value="16:9">16:9 horizontal</option>
+        </select>
+        <div class="hint">Note: aspect is driven by the face reference. Kling outputs whatever the face video's aspect is — this selector is informational.</div>
+      </div>
+    </details>
+  </section>
+
+  <!-- SECTION 5: RUN -->
+  <section>
+    <h2>5. Run</h2>
+    <div id="runValidation" class="hint"></div>
+    <button class="big" id="runBtn" onclick="runPipeline()">Generate Talking Head</button>
+    <div id="runLog" class="log hidden" style="margin-top:14px"></div>
+    <div id="runResult"></div>
+  </section>
+</main>
+
+<script>
+const TAGS = ["[excited]","[serious]","[warm]","[confident]","[casual]","[whisper]","[laugh]","[sigh]","[pause]"];
+const MAX_FACE_MB = 100;
+const MAX_FACE_SEC = 60;
+const MIN_FACE_SEC = 2;
+
+let state = { env: {}, library: [], selectedFace: null };
+
+const $ = (id) => document.getElementById(id);
+
+function togglePanel(id) { $(id).classList.toggle("hidden"); }
+
+async function loadConfig() {
+  const r = await fetch("/api/config");
+  state.env = await r.json();
+  $("voiceCurrent").textContent = state.env.FISH_AUDIO_VOICE_ID || "(not set)";
+  $("voicePill").textContent = state.env.FISH_AUDIO_VOICE_ID ? "set" : "not set";
+  $("faceCurrent").textContent = state.env.FACE_REFERENCE_URL || "(not set)";
+  if (state.env.DEFAULT_VOICE_SPEED) { $("speed").value = state.env.DEFAULT_VOICE_SPEED; $("speedVal").textContent = state.env.DEFAULT_VOICE_SPEED; }
+  if (state.env.DEFAULT_VOICE_TEMP) { $("temp").value = state.env.DEFAULT_VOICE_TEMP; $("tempVal").textContent = state.env.DEFAULT_VOICE_TEMP; }
+}
+
+async function saveVoice() {
+  const v = $("voiceIdInput").value.trim();
+  if (!v) return;
+  await fetch("/api/config", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ FISH_AUDIO_VOICE_ID: v })});
+  await loadConfig();
+  $("voicePanel").classList.add("hidden");
+  $("voiceIdInput").value = "";
+}
+
+async function loadLibrary() {
+  const r = await fetch("/api/face-library");
+  const data = await r.json();
+  state.library = data.references || [];
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const g = $("faceLibrary");
+  g.innerHTML = "";
+  for (const ref of state.library) {
+    const el = document.createElement("div");
+    el.className = "lib-item" + (ref.url === state.env.FACE_REFERENCE_URL ? " active" : "");
+    el.innerHTML = `
+      <video src="${ref.url}" preload="metadata" muted></video>
+      <div class="mono" style="margin-top:6px">${ref.id}</div>
+      <div class="hint">${(ref.tags||[]).join(", ") || "—"} &middot; ${ref.duration_secs||"?"}s</div>
+    `;
+    el.onclick = async () => {
+      await fetch("/api/config", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ FACE_REFERENCE_URL: ref.url })});
+      await loadConfig();
+      renderLibrary();
+    };
+    g.appendChild(el);
+  }
+}
+
+$("faceFile").addEventListener("change", (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const errs = [];
+  if (f.size > MAX_FACE_MB * 1024 * 1024) errs.push(`File too large (${(f.size/1024/1024).toFixed(1)} MB, max ${MAX_FACE_MB}).`);
+  if (!/\.(mp4|mov)$/i.test(f.name)) errs.push("Must be .mp4 or .mov");
+  const v = document.createElement("video");
+  v.preload = "metadata"; v.src = URL.createObjectURL(f);
+  v.onloadedmetadata = () => {
+    const d = v.duration;
+    let dErr = "";
+    if (d < MIN_FACE_SEC) dErr = `Too short: ${d.toFixed(1)}s (min ${MIN_FACE_SEC}s)`;
+    if (d > MAX_FACE_SEC) dErr = `Too long: ${d.toFixed(1)}s (max ${MAX_FACE_SEC}s)`;
+    $("faceValidation").innerHTML = [...errs, dErr].filter(Boolean).map(e=>`<div class="error-banner">${e}</div>`).join("") || `<div class="ok-banner">OK: ${d.toFixed(1)}s, ${(f.size/1024/1024).toFixed(1)} MB, ${v.videoWidth}×${v.videoHeight}</div>`;
+    $("faceUploadBtn").disabled = errs.length > 0 || !!dErr;
+  };
+});
+
+async function uploadFace() {
+  const f = $("faceFile").files[0]; if (!f) return;
+  const fd = new FormData();
+  fd.append("file", f);
+  fd.append("tags", $("faceTags").value);
+  fd.append("notes", $("faceNotes").value);
+  $("faceUploadBtn").disabled = true;
+  $("faceUploadStatus").textContent = "Uploading to fal.storage...";
+  try {
+    const r = await fetch("/api/upload-face", { method: "POST", body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "upload failed");
+    $("faceUploadStatus").innerHTML = `<div class="ok-banner">Uploaded: ${data.entry.url}</div>`;
+    await loadLibrary();
+  } catch (e) {
+    $("faceUploadStatus").innerHTML = `<div class="error-banner">${e.message}</div>`;
+  } finally {
+    $("faceUploadBtn").disabled = false;
+  }
+}
+
+// Tabs
+document.querySelectorAll(".tab").forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    document.querySelector(`.tab-panel[data-panel="${t.dataset.tab}"]`).classList.add("active");
+  };
+});
+
+// Tag chips
+const chips = $("tagChips");
+for (const t of TAGS) {
+  const c = document.createElement("span");
+  c.className = "chip"; c.textContent = t;
+  c.onclick = () => insertAtCursor($("scriptText"), t + " ");
+  chips.appendChild(c);
+}
+function insertAtCursor(el, txt) {
+  const s = el.selectionStart, e = el.selectionEnd;
+  el.value = el.value.slice(0, s) + txt + el.value.slice(e);
+  el.selectionStart = el.selectionEnd = s + txt.length;
+  el.focus(); updateScriptStats();
+}
+function updateScriptStats() {
+  const plain = $("scriptText").value.replace(/\[[^\]]+\]/g, "").trim();
+  const pauses = ($("scriptText").value.match(/\[pause\]/gi) || []).length;
+  const words = plain ? plain.split(/\s+/).length : 0;
+  const dur = (words / 140 * 60 + pauses * 0.3).toFixed(1);
+  $("scriptStats").textContent = `${words} words · ${pauses} pauses · ~${dur}s estimated`;
+}
+$("scriptText").addEventListener("input", updateScriptStats);
+
+async function genScripts() {
+  const btn = $("genBtn"); btn.disabled = true; btn.textContent = "Generating...";
+  $("aiResults").innerHTML = "";
+  try {
+    const r = await fetch("/api/generate-script", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        angle: $("aiAngle").value,
+        hookType: $("aiHook").value,
+        durationSecs: parseInt($("aiDur").value),
+        variations: parseInt($("aiN").value),
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    data.scripts.forEach((s, i) => {
+      const c = document.createElement("div");
+      c.className = "card";
+      c.innerHTML = `
+        <div><strong>Script ${i+1}</strong> · ${s.word_count} words · ~${s.est_duration_secs}s · ${s.hook_type}</div>
+        <pre style="white-space:pre-wrap;font: 12px/1.5 'SF Mono',Consolas,monospace;margin:8px 0">${s.script_tagged}</pre>
+        <button class="secondary" onclick='useScript(${JSON.stringify(s.script_tagged)})'>Use this script</button>
+      `;
+      $("aiResults").appendChild(c);
+    });
+  } catch (e) {
+    $("aiResults").innerHTML = `<div class="error-banner">${e.message}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = "Generate";
+  }
+}
+
+function useScript(text) {
+  $("scriptText").value = text;
+  document.querySelector('.tab[data-tab="manual"]').click();
+  updateScriptStats();
+}
+
+function logLine(msg, cls) {
+  const log = $("runLog"); log.classList.remove("hidden");
+  const line = document.createElement("div");
+  line.className = "line";
+  const t = new Date().toLocaleTimeString();
+  line.innerHTML = `<span class="t">${t}</span><span class="m ${cls||""}">${msg}</span>`;
+  log.appendChild(line); log.scrollTop = log.scrollHeight;
+}
+
+async function runPipeline() {
+  const script = $("scriptText").value.trim();
+  if (!script) { alert("Write or generate a script first."); return; }
+  if (!state.env.FISH_AUDIO_VOICE_ID) { alert("Set a voice ID first."); return; }
+  if (!state.env.FACE_REFERENCE_URL) { alert("Select a face reference first."); return; }
+
+  const btn = $("runBtn"); btn.disabled = true; btn.textContent = "Running...";
+  $("runLog").innerHTML = ""; $("runResult").innerHTML = "";
+
+  let elapsedTimer;
+  try {
+    const res = await fetch("/api/generate", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        script,
+        speed: parseFloat($("speed").value),
+        temperature: parseFloat($("temp").value),
+      })
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const events = buf.split("\n\n");
+      buf = events.pop() || "";
+      for (const ev of events) handleSSE(ev);
+    }
+  } catch (e) {
+    logLine("Connection error: " + e.message, "err");
+  } finally {
+    clearInterval(elapsedTimer);
+    btn.disabled = false; btn.textContent = "Generate Talking Head";
+  }
+}
+
+let lipsyncStart = 0, lipsyncTimer;
+function handleSSE(raw) {
+  const lines = raw.split("\n");
+  let event = "message", data = "";
+  for (const l of lines) {
+    if (l.startsWith("event:")) event = l.slice(6).trim();
+    else if (l.startsWith("data:")) data += l.slice(5).trim();
+  }
+  if (!data) return;
+  let payload; try { payload = JSON.parse(data); } catch { return; }
+
+  if (event === "progress") {
+    logLine(payload.message, "ok");
+    if (payload.stage === "lipsync") {
+      lipsyncStart = Date.now();
+      lipsyncTimer = setInterval(() => {
+        const s = Math.round((Date.now() - lipsyncStart) / 1000);
+        const last = $("runLog").lastElementChild;
+        if (last && last.dataset.elapsed === "1") last.querySelector(".m").textContent = `Kling elapsed: ${s}s`;
+        else {
+          const l = document.createElement("div");
+          l.className = "line"; l.dataset.elapsed = "1";
+          l.innerHTML = `<span class="t">⏱</span><span class="m">Kling elapsed: ${s}s</span>`;
+          $("runLog").appendChild(l);
+        }
+      }, 1000);
+    }
+    if (payload.stage === "lipsync_done") clearInterval(lipsyncTimer);
+  } else if (event === "done") {
+    clearInterval(lipsyncTimer);
+    logLine("Complete ✓", "ok");
+    const audioSrc = "/api/assets/" + payload.audioPath.replace(/^assets\//, "");
+    const videoSrc = "/api/assets/" + payload.videoPath.replace(/^assets\//, "");
+    $("runResult").innerHTML = `
+      <div class="ok-banner">Generated in ~${payload.durationSecs}s of video</div>
+      <label>Audio (${payload.audioPath})</label>
+      <audio controls src="${audioSrc}" style="width:100%"></audio>
+      <label>Video (${payload.videoPath})</label>
+      <video controls src="${videoSrc}" style="width:100%;max-height:600px;background:#000;border-radius:6px"></video>
+      <div style="margin-top:8px" class="row">
+        <a href="${audioSrc}" download><button class="secondary">Download MP3</button></a>
+        <a href="${videoSrc}" download><button class="secondary">Download MP4</button></a>
+      </div>
+    `;
+  } else if (event === "error") {
+    clearInterval(lipsyncTimer);
+    logLine(payload.message, "err");
+    $("runResult").innerHTML = `<div class="error-banner"><strong>Failed:</strong> ${payload.message}</div>`;
+  }
+}
+
+loadConfig().then(loadLibrary);
+updateScriptStats();
+</script>
+</body>
+</html>
