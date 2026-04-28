@@ -1,11 +1,26 @@
 import { fal } from "@fal-ai/client";
 import { config } from "../config/env.js";
-import { writeFile } from "fs/promises";
+import { writeFile, unlink } from "fs/promises";
 import { join } from "path";
+import { tmpdir } from "os";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { getAudioDuration, getVideoDuration } from "./whisper.js";
+
+export { getAudioDuration, getVideoDuration } from "./whisper.js";
 
 const execFileAsync = promisify(execFile);
+
+async function downloadToTmp(url: string, suffix: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`[LipSync] Failed to download ${url} (${res.status})`);
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+  const path = join(tmpdir(), `lipsync_preflight_${Date.now()}_${Math.random().toString(36).slice(2)}${suffix}`);
+  await writeFile(path, buf);
+  return path;
+}
 
 // Configure fal.ai client
 fal.config({ credentials: config.falKey });
@@ -30,6 +45,34 @@ export async function runLipSync(
   options: LipSyncOptions
 ): Promise<LipSyncResult> {
   const { videoUrl, audioUrl } = options;
+
+  // Pre-flight: Kling silently truncates output to min(audio, face) duration.
+  // Validate face >= audio before spending money on a doomed run.
+  let tmpAudio: string | null = null;
+  let tmpFace: string | null = null;
+  try {
+    [tmpAudio, tmpFace] = await Promise.all([
+      downloadToTmp(audioUrl, ".mp3"),
+      downloadToTmp(videoUrl, ".mp4"),
+    ]);
+    const [audioDur, faceDur] = await Promise.all([
+      getAudioDuration(tmpAudio),
+      getVideoDuration(tmpFace),
+    ]);
+    if (faceDur < audioDur - 0.5) {
+      throw new Error(
+        `[LipSync] Face video too short: face=${faceDur.toFixed(2)}s < audio=${audioDur.toFixed(2)}s. ` +
+          `Kling would silently truncate the output. Use a longer face reference or shorten the script.`
+      );
+    }
+    console.log(
+      `[LipSync] Pre-flight: audio=${audioDur.toFixed(2)}s face=${faceDur.toFixed(2)}s (OK)`
+    );
+  } finally {
+    await Promise.all(
+      [tmpAudio, tmpFace].map((p) => (p ? unlink(p).catch(() => {}) : Promise.resolve()))
+    );
+  }
 
   console.log("[LipSync] Submitting to Kling via fal.ai...");
 

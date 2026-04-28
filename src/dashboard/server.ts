@@ -8,6 +8,7 @@ import { join, basename, extname, resolve } from "path";
 import { fal } from "@fal-ai/client";
 import { generateSpeech } from "../services/fish-audio.js";
 import { runLipSync } from "../services/kling-lipsync.js";
+import { getVideoDuration } from "../services/whisper.js";
 import { readEnv, writeEnvFields, redactedEnv } from "./env-writer.js";
 import { generateScripts } from "./script-gen.js";
 
@@ -54,7 +55,15 @@ app.post("/api/upload-face", async (c) => {
     "application/octet-stream";
 
   const localPath = join("assets", "face-reference", `${Date.now()}_${basename(name)}`);
-  await writeFile(join(ROOT, localPath), buf);
+  const absLocalPath = join(ROOT, localPath);
+  await writeFile(absLocalPath, buf);
+
+  let durationSecs = 0;
+  try {
+    durationSecs = Math.round(await getVideoDuration(absLocalPath));
+  } catch (err) {
+    console.warn(`[upload-face] ffprobe failed, recording duration_secs: 0 (${err})`);
+  }
 
   const falFile = new File([buf], name, { type: contentType });
   const url = await fal.storage.upload(falFile);
@@ -65,7 +74,7 @@ app.post("/api/upload-face", async (c) => {
     id: `ref_${Date.now()}`,
     url,
     tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-    duration_secs: 0,
+    duration_secs: durationSecs,
     source: name,
     local_path: localPath,
     notes: notes || "Uploaded via dashboard",
